@@ -1,0 +1,7 @@
+.vscode
+.direnv
+__pycache__
+/UCI HAR Dataset
+/dataset_0512_5_linke
+.DS_Store
+.envrc
