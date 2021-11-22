@@ -5,3 +5,4 @@ __pycache__
 /dataset_0512_5_linke
 .DS_Store
 .envrc
+.ipynb_checkpoints
