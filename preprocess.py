@@ -26,6 +26,13 @@ def load_data(fp, test=False):
     else:
         folder = Path(fp, "train_margin")
 
+    if Path(fp, f"{'test' if test else 'train'}.npz").exists():
+        # 从缓存中读取
+        data = np.load(Path(fp, f"{'test' if test else 'train'}.npz"))
+        X = data["x"]
+        Y = data["y"]
+        return X, Y
+
     X = []
     Y = []
 
@@ -40,6 +47,9 @@ def load_data(fp, test=False):
 
     X = np.array(X)
     Y = np.array(Y, dtype=np.int32)
+
+    # 缓存为npz格式
+    np.savez(Path(fp, f"{'test' if test else 'train'}.npz"), x=X, y=Y)
 
     return X, Y
 
