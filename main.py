@@ -6,50 +6,52 @@ from network import Network
 from preprocess import create_data_loader
 
 
-def valid(model, test_loader):
-    model.eval()
+def train_loop(model, optimizer, train_loader, loss_fn):
+    size = len(train_loader.dataset)
+    for batch, (X, y) in enumerate(train_loader, start=1):
+        X = X.view(-1, 3, 1, 125).float()
+        y = y.long()
+        output = model(X)
+        loss = loss_fn(output, y)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        if batch % 100 == 0:
+            loss, current = loss.item(), batch * len(X)
+            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+
+
+def test_loop(model, test_loader, loss_fn):
+    size = len(test_loader.dataset)
+    num_batches = len(test_loader)
+    test_loss, correct = 0, 0
+
     with torch.no_grad():
-        correct, total = 0, 0
-        for sample, target in test_loader:
-            sample = sample.view(-1, 3, 1, 125).float()
-            output = model(sample)
-            _, predicted = torch.max(output.data, 1)
-            total += target.size(0)
-            correct += (predicted == target).sum()
-    acc_test = float(correct) * 100 / total
-    return acc_test
+        for X, y in test_loader:
+            X = X.view(-1, 3, 1, 125).float()
+            y = y.long()
+            pred = model(X)
+            test_loss += loss_fn(pred, y).item()
+            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+
+    test_loss /= num_batches
+    correct /= size
+    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 
 def train(model, optimizer, train_loader, test_loader):
-    criterion = nn.CrossEntropyLoss()
-    nepoch = 16
-
-    for e in range(nepoch):
-        model.train()
-        correct, total_loss = 0, 0
-        total = 0
-        for sample, target in train_loader:
-            sample = sample.view(-1, 3, 1, 125).float()
-            target = target.long()
-            output = model(sample)
-            loss = criterion(output, target)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-            _, predicted = torch.max(output.data, 1)
-            total += target.size(0)
-            correct += (predicted == target).sum()
-        acc_train = float(correct) * 100.0 / len(train_loader.dataset)
-        acc_test = valid(model, test_loader)
-        print(
-            f"Epoch: [{e+1}/{nepoch}], loss:{total_loss / len(train_loader):.4f}, train_acc: {acc_train:.2f}, test_acc: {acc_test:.2f}"
-        )
+    loss_fn = nn.CrossEntropyLoss()
+    for t in range(32):
+        print(f"Epoch {t+1}\n-------------------------------")
+        train_loop(model, optimizer, train_loader, loss_fn)
+        test_loop(model, test_loader, loss_fn)
+    print("Done!")
 
 
 if __name__ == "__main__":
     model = Network()
     optimizer = optim.SGD(params=model.parameters(), lr=0.01, momentum=0.9)
+    # optimizer = optim.Adam(params=model.parameters(), lr=0.01)
     train_loader = create_data_loader("./dataset_0512_5_linke")
     test_loader = create_data_loader("./dataset_0512_5_linke", test=True)
     train(model, optimizer, train_loader, test_loader)
